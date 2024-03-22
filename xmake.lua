@@ -50,7 +50,7 @@ option("enable-newton")
     end)
 
 option("enable-fmm")
-    set_default(false)
+    set_default(true)
     set_showmenu(true)
     add_defines("_ENABLE_FMM_")
 

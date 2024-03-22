@@ -95,11 +95,7 @@ protected:
 		auto newPhi = phi;
 		auto newPsi = psi;
 		auto cposes = psi;
-#ifdef _LOG_NEWTON
-		forEach(phi.grid, [&](const VectorDi &coord) {
-#else
 		parallelForEach(phi.grid, [&](const VectorDi &coord) {
-#endif
 			if (_mark[coord]) {
 				const VectorDd pos = phi.grid.position(coord);
 				VectorDd closestPos = getClosestPosition(coord, pos, phiView);
@@ -111,30 +107,6 @@ protected:
 				cposes[coord] = closestPos;
 			}
 		});
-// 		for (int iter = 0; iter < 5; ++iter) {
-// #ifdef _LOG_NEWTON
-// 			forEach(phi.grid, [&](const VectorDi &coord) {
-// #else
-// 			parallelForEach(phi.grid, [&](const VectorDi &coord) {
-// #endif
-// 				if (_diverged[coord]) {
-// 					VectorDd sum = VectorDd::Zero();
-// 					int cnt = 0;
-// 					for (int i = 0; i < Grid<Dim>::numberOfNeighbors(); i++) {
-// 						const VectorDi &nbCoord = Grid<Dim>::neighbor(coord, i);
-// 						if (phi.grid.isValid(nbCoord) && _mark[nbCoord] && !_diverged[nbCoord])
-// 							sum += cposes[nbCoord], cnt++;
-// 					}
-// 					if (cnt > 0) {
-// 						const VectorDd pos = phi.grid.position(coord);
-// 						const VectorDd closestPos = getClosestPosition(coord, pos, sum / cnt, phiView);
-// 						newPhi[coord] = (pos - closestPos).norm() * (phi[coord] < 0 ? -1 : 1);
-// 						newPsi[coord] = phiView.gradient(closestPos).normalized();
-// 						cposes[coord] = closestPos;
-// 					}
-// 				}
-// 			});
-// 		}
 		phi = newPhi, psi = newPsi;
 	}
 
@@ -162,30 +134,6 @@ protected:
 				cposes[coord] = closestPos;
 			}
 		});
-// 		for (int iter = 0; iter < 5; ++iter) {
-// #ifdef _LOG_NEWTON
-// 			forEach(phi.grid, [&](const VectorDi &coord) {
-// #else
-// 			parallelForEach(phi.grid, [&](const VectorDi &coord) {
-// #endif
-// 				if (_diverged[coord]) {
-// 					VectorDd sum = VectorDd::Zero();
-// 					int cnt = 0;
-// 					for (int i = 0; i < Grid<Dim>::numberOfNeighbors(); i++) {
-// 						const VectorDi &nbCoord = Grid<Dim>::neighbor(coord, i);
-// 						if (phi.grid.isValid(nbCoord) && _mark[nbCoord] && !_diverged[nbCoord])
-// 							sum += cposes[nbCoord], cnt++;
-// 					}
-// 					if (cnt > 0) {
-// 						const VectorDd pos = phi.grid.position(coord);
-// 						const VectorDd closestPos = getClosestPosition(coord, pos, sum / cnt, phiView);
-// 						newPhi[coord] = (pos - closestPos).norm() * (phi[coord] < 0 ? -1 : 1);
-// 						newPsi[coord] = phiView.gradient(closestPos).normalized();
-// 						cposes[coord] = closestPos;
-// 					}
-// 				}
-// 			});
-// 		}
 		phi = newPhi, psi = newPsi;
 	}
 
@@ -320,10 +268,6 @@ protected:
 				}
 				if (loss(pos + delta) > loss(pos)) break;
 
-#ifdef _LOG_NEWTON
-				std::cout << "current[" << si + 1 << "]: phi=" << (phi / _mark.grid.spacing) << " \tsigma=" << sigma << " \tloss=" << loss(pos) << " \tlambda=" << lambda << " \tpos=" << (pos / _mark.grid.spacing).transpose().format(cleanFmt) << " \tpsi=" << psi.transpose().format(cleanFmt) << " \tgrad=" << (grad / _mark.grid.spacing).transpose().format(cleanFmt) << " \tdelta=" << (delta / _mark.grid.spacing).transpose().format(cleanFmt) << std::endl;
-#endif
-
 				pos += delta;
 				phi = phiView(pos);
 				if (grad.norm() < tolerance) {
@@ -350,10 +294,6 @@ protected:
 			constexpr double RHOI = 0.9;
 			double dp;
 			VectorDd res = pos;
-			#ifdef _LOG_NEWTON
-				std::cout << "intersect: pos=" << (pos / _mark.grid.spacing).transpose().format(cleanFmt) << " \tdir=" << dir.transpose().format(cleanFmt);
-				std::cout << std::endl;
-			#endif
 			for (int i = 0; i < 10; ++i) {
 				double val = phiView(res);
 				double grad = phiView.gradient(res).dot(dir);
@@ -361,14 +301,8 @@ protected:
 				dp = 20 * tolerance * (grad * val > 0 ? -1 : 1);
 				while (std::abs(phiView(res + dp * RHOI * dir)) > std::abs(val) - std::abs(0.1 * grad * dp)) // Armijo
 					dp *= RHOI;
-#ifdef _LOG_NEWTON
-				std::cout << "current: phi=" << (val / _mark.grid.spacing)  << " \tpos=" << (res / _mark.grid.spacing).transpose().format(cleanFmt) << " \tpsi=" << phiView.gradient(res).transpose().format(cleanFmt) << " \tdist=" << (res.dot(dir) / _mark.grid.spacing) << " \tgrad=" << grad << " \tdp=" << (dp / _mark.grid.spacing) << " \tcostheta=" << phiView.gradient(res).normalized().dot(dir) << std::endl;
-#endif
 				res += dp * dir;
 				if (std::abs(phiView(res)) < tolerance || std::abs(dp) < 0.1 * tolerance) {
-#ifdef _LOG_NEWTON
-				std::cout << "current: phi=" << (phiView(res) / _mark.grid.spacing)  << " \tpos=" << (res / _mark.grid.spacing).transpose().format(cleanFmt) << " \tpsi=" << phiView.gradient(res).transpose().format(cleanFmt) << " \tdist=" << (res.dot(dir) / _mark.grid.spacing) << " \tgrad=" << grad << " \tdp=" << (dp / _mark.grid.spacing) << " \tcostheta=" << phiView.gradient(res).normalized().dot(dir) << std::endl;
-#endif
 					return res;
 				}
 			}
@@ -450,51 +384,6 @@ protected:
 #else
 			pos += delta;
 #endif
-
-			// // line search
-			// constexpr double GAMMA = 0.9;
-			// delta = VectorDd::Zero();
-			// delta1 = -phi * psi / psi.squaredNorm();
-			// tdelta = delta1 * GAMMA;
-			// lsi = 0;
-			// while (std::abs(phiView(pos + delta + tdelta)) < std::abs(phiView(pos + delta + delta1)) && lsi < 5) {
-			// 	delta1 = tdelta;
-			// 	tdelta *= GAMMA;
-			// 	++lsi;
-			// }
-			// delta += delta1;
-			// delta2 = ((startPos - pos) - psi * (startPos - pos).dot(psi) / psi.squaredNorm());
-			// auto loss = [&phiView, &startPos](const VectorDd &x) -> double {
-			// 	VectorDd psii = phiView.gradient(x);
-			// 	if constexpr (Dim == 3) {
-			// 		return ((startPos - x).cross(psii)).norm();
-			// 	} else {
-			// 		return std::abs((startPos - x)(0) * psii(1) - (startPos - x)(1) * psii(0));
-			// 	}
-			// };
-			// tdelta = delta2 * GAMMA;
-			// lsi = 0;
-			// while (loss(pos + delta + tdelta) < loss(pos + delta + delta2) && lsi < 5) {
-			// 	delta2 = tdelta;
-			// 	tdelta *= GAMMA;
-			// 	++lsi;
-			// }
-			// delta += delta2;
-			// if constexpr (Dim == 3) {
-			// 	delta3 = delta1.cross(delta2).normalized();
-			// 	delta3 *= (startPos - pos).norm() * delta3.dot(phiView.gradient(pos + delta).normalized());
-			// 	tdelta = delta3 * GAMMA;
-			// 	lsi = 0;
-			// 	while (loss(pos + delta + tdelta) + std::abs(phiView(pos + delta + tdelta)) < loss(pos + delta + delta3) + std::abs(phiView(pos + delta + tdelta)) && lsi < 5) {
-			// 		delta3 = tdelta;
-			// 		tdelta *= GAMMA;
-			// 		++lsi;
-			// 	}
-			// 	delta += delta3;
-			// }
-			// norm = delta.norm();
-			// ppos = pos;
-			// pos += delta;
 #ifdef _LOG_NEWTON
 			std::cout << "current: phi=" << (phi / _mark.grid.spacing) << " \tpos=" << ((pos - delta) / _mark.grid.spacing).transpose().format(cleanFmt) << " \tpsi=" << psi.transpose().format(cleanFmt) << " \tdelta1=" << (delta1 / _mark.grid.spacing).transpose().format(cleanFmt) << " \tdelta2=" << (delta2 / _mark.grid.spacing).transpose().format(cleanFmt);
 			// std::cout << "current: phi=" << (phi / _mark.grid.spacing) << " \tloss="  << loss(ppos) << " \tpos=" << (ppos / _mark.grid.spacing).transpose().format(cleanFmt) << " \tpsi=" << psi.transpose().format(cleanFmt) << " \tdelta1=" << (delta1 / _mark.grid.spacing).transpose().format(cleanFmt) << " \tdelta2=" << (delta2 / _mark.grid.spacing).transpose().format(cleanFmt);
@@ -577,37 +466,6 @@ protected:
 		return pos;
 	}
 
-	// template <typename Field = DrvScalarFieldWrapper<Dim, GridBasedData<Dim, double>, HermiteIntrpl<Dim, double>>>
-	// VectorDd getClosestPosition(const VectorDi &coord, const VectorDd &startPos, const VectorDd &initPos, const Field &phiView, const double epsl = 0.0)
-	// {
-	// 	const double tolerance = 1e-5 * _mark.grid.spacing * _mark.grid.spacing * (Dim == 2 ? 1 : _mark.grid.spacing);
-	// 	double radius = .9 * _mark.grid.spacing;
-	// 	VectorDd pos = initPos;
-	// 	bool converged = false;
-	// 	double phi;
-	// 	VectorDd psi, delta;
-	// 	// for (;;) {
-	// 	for (int iter = 0; iter < 20; iter++) {
-	// 		phi = phiView(pos);
-	// 		psi = phiView.gradient(pos);
-	// 		delta = -phi * psi / psi.squaredNorm() + (startPos - pos) - psi * (startPos - pos).dot(psi) / psi.squaredNorm();
-	// 		double norm = delta.norm();
-	// 		if (norm > radius) {
-	// 			delta *= radius / norm;
-	// 			norm = radius;
-	// 		}
-	// 		// std::cout << "current: phi=" << phi << " pos=" << pos.transpose() << " psi=" << psi.transpose() << " delta=" << delta.transpose() << std::endl;
-	// 		pos += delta;
-	// 		if (norm < tolerance) {
-	// 			converged = true; break;
-	// 		}
-	// 	}
-	// 	if (!converged) {
-	// 			// std::cout << "current: phi=" << phi << " psi=(" << psi.transpose() << ") pos=(" << pos.transpose() << ") delta=(" << delta.transpose() << ") " << delta.norm() << " " << radius << std::endl;
-	// 		_mark[coord] = false;
-	// 	}
-	// 	return pos;
-	// }
 
 };
 

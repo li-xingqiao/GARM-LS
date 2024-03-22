@@ -9,7 +9,7 @@
 #include "StaggeredGrid.h"
 #include "Yaml.h"
 
-#define _ENABLE_FMM_
+// #define _ENABLE_FMM_
 #include "HybridNewton.h"
 
 #include <chrono>
